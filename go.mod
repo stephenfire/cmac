@@ -1,3 +1,3 @@
-module github.com/aead/cmac
+module github.com/stephenfire/cmac
 
 go 1.17

@@ -10,7 +10,7 @@ import (
 	aesCipher "crypto/aes"
 	"hash"
 
-	"github.com/aead/cmac"
+	"github.com/stephenfire/cmac"
 )
 
 // Sum computes the AES-CMAC checksum with the given tagsize of msg using the cipher.Block.
