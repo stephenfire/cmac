@@ -8,11 +8,20 @@
 // fixed-length messages). CMAC is equal to OMAC1.
 // This implementations supports block ciphers with a
 // block size of:
-//	-   64 bit
-//	-  128 bit
-//	-  256 bit
-//	-  512 bit
-//	- 1024 bit
+//   - 64 bit
+//   - 128 bit
+//   - 160 bit
+//   - 192 bit
+//   - 224 bit
+//   - 256 bit
+//   - 320 bit
+//   - 384 bit
+//   - 448 bit
+//   - 512 bit
+//   - 768 bit
+//   - 1024 bit
+//   - 2048 bit
+//
 // Common ciphers like AES, Serpent etc. operate on 128 bit
 // blocks. 256, 512 and 1024 are supported for the Threefish
 // tweakable block cipher. Ciphers with 64 bit blocks are
@@ -27,13 +36,8 @@ import (
 	"hash"
 )
 
-const (
-	// minimal irreducible polynomial for blocksize
-	p64   = 0x1b    // for 64  bit block ciphers
-	p128  = 0x87    // for 128 bit block ciphers (like AES)
-	p256  = 0x425   // special for large block ciphers (Threefish)
-	p512  = 0x125   // special for large block ciphers (Threefish)
-	p1024 = 0x80043 // special for large block ciphers (Threefish)
+var (
+	zeros = make([]byte, 2048/8)
 )
 
 var (
@@ -77,19 +81,35 @@ func NewWithTagSize(c cipher.Block, tagsize int) (hash.Hash, error) {
 	}
 
 	var p int
-	switch blocksize {
+	switch blocksize << 3 {
 	default:
 		return nil, errUnsupportedCipher
-	case 8:
-		p = p64
-	case 16:
-		p = p128
-	case 32:
-		p = p256
 	case 64:
-		p = p512
+		p = 0x1B
 	case 128:
-		p = p1024
+		p = 0x87
+	case 160:
+		p = 0x2D
+	case 192:
+		p = 0x87
+	case 224:
+		p = 0x309
+	case 256:
+		p = 0x425
+	case 320:
+		p = 0x1B
+	case 384:
+		p = 0x100D
+	case 448:
+		p = 0x851
+	case 512:
+		p = 0x125
+	case 768:
+		p = 0xA0011
+	case 1024:
+		p = 0x80043
+	case 2048:
+		p = 0x86001
 	}
 
 	m := &macFunc{
@@ -124,9 +144,7 @@ func (h *macFunc) Size() int { return h.cipher.BlockSize() }
 func (h *macFunc) BlockSize() int { return h.cipher.BlockSize() }
 
 func (h *macFunc) Reset() {
-	for i := range h.buf {
-		h.buf[i] = 0
-	}
+	copy(h.buf, zeros)
 	h.off = 0
 }
 
@@ -172,22 +190,22 @@ func (h *macFunc) Sum(b []byte) []byte {
 	blocksize := h.cipher.BlockSize()
 
 	// Don't change the buffer so the
-	// caller can keep writing and suming.
-	hash := make([]byte, blocksize)
+	// caller can keep writing and summing.
+	hbuf := make([]byte, blocksize)
 
 	if h.off < blocksize {
-		copy(hash, h.k1)
+		copy(hbuf, h.k1)
 	} else {
-		copy(hash, h.k0)
+		copy(hbuf, h.k0)
 	}
 
-	xor(hash, h.buf)
+	xor(hbuf, h.buf)
 	if h.off < blocksize {
-		hash[h.off] ^= 0x80
+		hbuf[h.off] ^= 0x80
 	}
 
-	h.cipher.Encrypt(hash, hash)
-	return append(b, hash[:h.tagsize]...)
+	h.cipher.Encrypt(hbuf, hbuf)
+	return append(b, hbuf[:h.tagsize]...)
 }
 
 func shift(dst, src []byte) int {

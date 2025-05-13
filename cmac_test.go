@@ -22,7 +22,7 @@ func (c dummyCipher) Encrypt(dst, src []byte) { copy(dst, src) }
 func (c dummyCipher) Decrypt(dst, src []byte) { copy(dst, src) }
 
 func TestNew(t *testing.T) {
-	var ciphers = [5]dummyCipher{8, 16, 32, 64, 128}
+	var ciphers = []dummyCipher{8, 16, 20, 24, 28, 32, 40, 48, 56, 64, 96, 128, 256}
 	for _, c := range ciphers {
 		_, err := New(c)
 		if err != nil {
@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 		}
 	}
 
-	_, err := New(dummyCipher(20))
+	_, err := New(dummyCipher(21))
 	if err == nil {
 		t.Fatalf("CMAC allowed invalid block size: %d", 20)
 	}
@@ -164,9 +164,9 @@ func TestSum(t *testing.T) {
 		}
 	}
 
-	_, err = Sum(nil, dummyCipher(20), 20)
+	_, err = Sum(nil, dummyCipher(21), 21)
 	if err == nil {
-		t.Fatalf("cmac.Sum allowed invalid block size: %d", 20)
+		t.Fatalf("cmac.Sum allowed invalid block size: %d", 21)
 	}
 }
 
