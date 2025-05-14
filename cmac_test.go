@@ -179,6 +179,40 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+func TestCMACs(t *testing.T) {
+	d := func(s string) []byte {
+		b, _ := hex.DecodeString(s)
+		return b
+	}
+	cmac := func(key []byte, data []byte) ([]byte, error) {
+		c, err := aes.NewCipher(key)
+		if err != nil {
+			return nil, err
+		}
+		h, err := New(c)
+		if err != nil {
+			return nil, err
+		}
+		h.Write(data)
+		return h.Sum(nil), nil
+	}
+	tests := []struct{ key, value, mac []byte }{
+		{d("5ACE7E50AB65D5D51FD5BF5A16B8205B"), d("C33C0001008004C767F2066180010000"), d("66DA61797E23DECA5D8ECA13BBADF7A9")},
+		{d("5ACE7E50AB65D5D51FD5BF5A16B8205B"), d("3CC30001008004C767F2066180010000"), d("3A3E8110E05311F7A3FCF0D969BF2B48")},
+		{d("3ED0920E5E6A0320D823D5987FEAFBB1"), d("434545394135334533453436334546314634353936333537333637333839363226636d61633d"), d("81EC45C175E72FF6FAC61BC7AB3BAEF6")},
+	}
+
+	for _, test := range tests {
+		m, err := cmac(test.key, test.value)
+		if err != nil {
+			t.Fatalf("cmac(%X, %X): %v", test.key, test.value, err)
+		}
+		if !bytes.Equal(m, test.mac) {
+			t.Fatalf("expected: %X, got: %X", test.mac, m)
+		}
+	}
+}
+
 // Benchmarks
 
 func BenchmarkWrite_16B(b *testing.B) { benchmarkWrite(b, 16) }

@@ -38,12 +38,32 @@ import (
 
 var (
 	zeros = make([]byte, 2048/8)
+
+	rb_64   = []byte{0x00, 0x00, 0x1B}
+	rb_128  = []byte{0x00, 0x00, 0x87}
+	rb_160  = []byte{0x00, 0x00, 0x2D}
+	rb_192  = []byte{0x00, 0x00, 0x87}
+	rb_224  = []byte{0x00, 0x03, 0x09}
+	rb_256  = []byte{0x00, 0x04, 0x25}
+	rb_320  = []byte{0x00, 0x00, 0x1B}
+	rb_384  = []byte{0x00, 0x10, 0x0D}
+	rb_448  = []byte{0x00, 0x08, 0x51}
+	rb_512  = []byte{0x00, 0x01, 0x25}
+	rb_768  = []byte{0x0A, 0x00, 0x11}
+	rb_1024 = []byte{0x08, 0x00, 0x43}
+	rb_2048 = []byte{0x08, 0x60, 0x01}
 )
 
 var (
 	errUnsupportedCipher = errors.New("cipher block size not supported")
 	errInvalidTagSize    = errors.New("tags size must between 1 and the cipher's block size")
 )
+
+// XOR xors the bytes in dst with src and writes the result to dst.
+// The destination is assumed to have enough space.
+func XOR(dest, src []byte) {
+	xor(dest, src)
+}
 
 // Sum computes the CMAC checksum with the given tagsize of msg using the cipher.Block.
 func Sum(msg []byte, c cipher.Block, tagsize int) ([]byte, error) {
@@ -80,36 +100,36 @@ func NewWithTagSize(c cipher.Block, tagsize int) (hash.Hash, error) {
 		return nil, errInvalidTagSize
 	}
 
-	var p int
+	var p []byte
 	switch blocksize << 3 {
 	default:
 		return nil, errUnsupportedCipher
 	case 64:
-		p = 0x1B
+		p = rb_64
 	case 128:
-		p = 0x87
+		p = rb_128
 	case 160:
-		p = 0x2D
+		p = rb_160
 	case 192:
-		p = 0x87
+		p = rb_192
 	case 224:
-		p = 0x309
+		p = rb_224
 	case 256:
-		p = 0x425
+		p = rb_256
 	case 320:
-		p = 0x1B
+		p = rb_320
 	case 384:
-		p = 0x100D
+		p = rb_384
 	case 448:
-		p = 0x851
+		p = rb_448
 	case 512:
-		p = 0x125
+		p = rb_512
 	case 768:
-		p = 0xA0011
+		p = rb_768
 	case 1024:
-		p = 0x80043
+		p = rb_1024
 	case 2048:
-		p = 0x86001
+		p = rb_2048
 	}
 
 	m := &macFunc{
@@ -122,10 +142,16 @@ func NewWithTagSize(c cipher.Block, tagsize int) (hash.Hash, error) {
 	c.Encrypt(m.k0, m.k0)
 
 	v := shift(m.k0, m.k0)
-	m.k0[blocksize-1] ^= byte(subtle.ConstantTimeSelect(v, p, 0))
+	mask := (-v) & 0xFF
+	m.k0[blocksize-3] ^= p[0] & byte(mask)
+	m.k0[blocksize-2] ^= p[1] & byte(mask)
+	m.k0[blocksize-1] ^= p[2] & byte(mask)
 
 	v = shift(m.k1, m.k0)
-	m.k1[blocksize-1] ^= byte(subtle.ConstantTimeSelect(v, p, 0))
+	mask = (-v) & 0xFF
+	m.k1[blocksize-3] ^= p[0] & byte(mask)
+	m.k1[blocksize-2] ^= p[1] & byte(mask)
+	m.k1[blocksize-1] ^= p[2] & byte(mask)
 
 	return m, nil
 }
